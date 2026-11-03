@@ -45,5 +45,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # The gate runs `python -m pytest`, but the interpreter the Action pins carries no
+      # pytest. Put one 3.12 on PATH with pytest installed, then turn the Action's own pin
+      # off (setup-python: false) so the gate runs through this interpreter.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: python -m pip install pytest
+
       - name: Gates from the binding
         uses: iteramen/ouro/actions/gates@v1.9.1
+        with:
+          setup-python: 'false'
