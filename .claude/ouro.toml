@@ -14,6 +14,12 @@ scope = []
 area = []
 type = []
 
+[[gate]]
+# A-axis point-to-point motion acceptance: unit test for motion/axis_a.py
+run = "python -m pytest tests/test_axis_a.py -q"
+paths = ["motion/axis_a.py", "tests/test_axis_a.py"]
+cheap = true
+
 [ship]
 policy = "stop-at-pr"                    # stop-at-pr | trivial-merge | merge-on-green
 # Under merge-on-green only: the Flow classes the driver merges unattended once the checks are
