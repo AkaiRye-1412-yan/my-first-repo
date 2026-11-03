@@ -21,6 +21,8 @@ paths = ["motion/axis_a.py", "tests/test_axis_a.py"]
 cheap = true
 
 [ship]
+validation = "ci"
+validation_checks = ["gates"]
 policy = "stop-at-pr"                    # stop-at-pr | trivial-merge | merge-on-green
 # Under merge-on-green only: the Flow classes the driver merges unattended once the checks are
 # green and the review is clean. Default: express and standard. Table: ouro/docs/binding.md.
