@@ -1,2 +1,6 @@
 .claude/worktrees/
 .claude/ouro.local.toml
+
+# Python
+__pycache__/
+*.py[cod]
