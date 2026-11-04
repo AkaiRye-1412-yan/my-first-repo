@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>运动控制控制台 · Motion Control Console</title>
+<style>
+  :root {
+    --bg: #060a14;
+    --panel: rgba(13, 22, 38, 0.72);
+    --panel-solid: #0d1626;
+    --line: rgba(94, 234, 255, 0.16);
+    --line-strong: rgba(94, 234, 255, 0.42);
+    --text: #dce8f5;
+    --muted: #7d92ad;
+    --cyan: #22d3ee;
+    --cyan-soft: rgba(34, 211, 238, 0.14);
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #fb5b6b;
+    --mono: "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+    --sans: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: var(--sans);
+    color: var(--text);
+    background:
+      radial-gradient(1100px 560px at 82% -12%, rgba(34, 211, 238, 0.13), transparent 60%),
+      radial-gradient(900px 500px at 8% 108%, rgba(56, 120, 255, 0.10), transparent 60%),
+      linear-gradient(rgba(94, 234, 255, 0.045) 1px, transparent 1px) 0 0 / 42px 42px,
+      linear-gradient(90deg, rgba(94, 234, 255, 0.045) 1px, transparent 1px) 0 0 / 42px 42px,
+      var(--bg);
+    min-height: 100vh;
+    padding: 28px 20px 40px;
+  }
+
+  .app { max-width: 1080px; margin: 0 auto; }
+
+  /* ---------- Header ---------- */
+  header.top {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 18px 50px -24px rgba(34, 211, 238, 0.35);
+  }
+
+  .brand-mark { flex: 0 0 auto; }
+
+  .brand-text { flex: 1 1 auto; min-width: 0; }
+  .brand-text h1 {
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+  }
+  .brand-text .sub {
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    border: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .pill .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: currentColor;
+  }
+  .pill.idle    { color: var(--green); background: rgba(52, 211, 153, 0.09); }
+  .pill.running { color: var(--cyan);  background: rgba(34, 211, 238, 0.10); }
+  .pill.alarm   { color: var(--red);   background: rgba(251, 91, 107, 0.12); border-color: rgba(251, 91, 107, 0.45); }
+  .pill.running .dot { animation: blink 1s steps(2, start) infinite; }
+  .pill.alarm .dot   { animation: blink 0.6s steps(2, start) infinite; }
+
+  @keyframes blink { 50% { opacity: 0.15; } }
+
+  /* ---------- Tabs ---------- */
+  nav.tabs {
+    display: flex;
+    gap: 6px;
+    margin: 18px 0 0;
+    padding: 5px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+  }
+  .tab {
+    flex: 1 1 0;
+    appearance: none;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    padding: 11px 10px;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  }
+  .tab .idx {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--cyan);
+    opacity: 0.65;
+    margin-right: 8px;
+  }
+  .tab:hover { color: var(--text); background: rgba(94, 234, 255, 0.06); }
+  .tab[aria-selected="true"] {
+    color: #eaf8ff;
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.18), rgba(34, 211, 238, 0.07));
+    border-color: var(--line-strong);
+    box-shadow: 0 0 18px -6px rgba(34, 211, 238, 0.55), inset 0 0 14px -8px rgba(34, 211, 238, 0.8);
+  }
+  .tab[aria-selected="true"] .idx { opacity: 1; }
+
+  /* ---------- Banner / cards / panels ---------- */
+  .banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 14px;
+    padding: 12px 18px;
+    border-radius: 11px;
+    border: 1px solid rgba(251, 91, 107, 0.5);
+    background: rgba(251, 91, 107, 0.10);
+    color: #ffd7dc;
+    font-size: 13.5px;
+  }
+  .banner .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--red);
+    border: 1px solid rgba(251, 91, 107, 0.55);
+    border-radius: 5px;
+    padding: 3px 8px;
+    flex: 0 0 auto;
+  }
+  .banner .msg { flex: 1 1 auto; }
+  .hidden { display: none !important; }
+
+  main { margin-top: 14px; }
+
+  .view {
+    display: grid;
+    gap: 16px;
+  }
+
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    padding: 20px 22px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+  .card h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card h2::before {
+    content: "";
+    width: 4px; height: 14px;
+    background: var(--cyan);
+    border-radius: 2px;
+    box-shadow: 0 0 10px var(--cyan);
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ---------- Readouts ---------- */
+  .readouts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 640px) { .readouts { grid-template-columns: 1fr 1fr; } }
+
+  .readout .k {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+  .readout .v {
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 26px;
+    color: var(--cyan);
+    text-shadow: 0 0 18px rgba(34, 211, 238, 0.45);
+    font-variant-numeric: tabular-nums;
+  }
+  .readout .u { font-size: 12px; color: var(--muted); margin-left: 5px; }
+
+  .readout.pos .v { font-size: 40px; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 8px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    border: 1px solid var(--line);
+  }
+  .badge::before {
+    content: "";
+    width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor;
+  }
+  .badge.idle    { color: var(--green); background: rgba(52, 211, 153, 0.09); }
+  .badge.running { color: var(--cyan);  background: rgba(34, 211, 238, 0.10); }
+  .badge.alarm   { color: var(--red);   background: rgba(251, 91, 107, 0.12); border-color: rgba(251, 91, 107, 0.45); }
+
+  /* ---------- Travel rail ---------- */
+  .rail { margin-top: 4px; }
+  .rail .scale {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .track {
+    position: relative;
+    height: 12px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(10, 18, 32, 0.9), rgba(16, 28, 46, 0.9));
+    border: 1px solid var(--line);
+    overflow: visible;
+  }
+  .track .fill {
+    position: absolute; inset: 0 auto 0 0;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(34, 211, 238, 0.25), rgba(34, 211, 238, 0.85));
+    box-shadow: 0 0 14px rgba(34, 211, 238, 0.6);
+    transition: width 0.08s linear;
+  }
+  .track .car {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    width: 18px; height: 18px;
+    transform: translate(-50%, -50%);
+    border-radius: 5px;
+    background: #dffaff;
+    border: 2px solid var(--cyan);
+    box-shadow: 0 0 14px rgba(34, 211, 238, 0.9);
+    transition: left 0.08s linear;
+  }
+  .rail.alarm .car { border-color: var(--red); background: #ffe3e7; box-shadow: 0 0 14px rgba(251, 91, 107, 0.9); }
+
+  /* ---------- Jog / controls ---------- */
+  .jog-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: stretch; }
+  @media (max-width: 760px) { .jog-layout { grid-template-columns: 1fr; } }
+
+  .jogpad {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-content: center;
+  }
+  .jog-here {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+  .jog-here .v {
+    font-family: var(--mono);
+    font-size: 44px;
+    color: var(--cyan);
+    text-shadow: 0 0 22px rgba(34, 211, 238, 0.5);
+    font-variant-numeric: tabular-nums;
+  }
+  .jog-here .u { font-size: 12px; color: var(--muted); letter-spacing: 0.15em; }
+
+  .btn {
+    appearance: none;
+    font-family: var(--sans);
+    font-size: 14.5px;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    padding: 15px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line-strong);
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.12), rgba(34, 211, 238, 0.04));
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.08s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
+  }
+  .btn .arrow { font-family: var(--mono); margin-right: 8px; color: var(--cyan); }
+  .btn:hover { box-shadow: 0 0 16px -4px rgba(34, 211, 238, 0.7); }
+  .btn:active, .btn.flash {
+    transform: translateY(1px);
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.32), rgba(34, 211, 238, 0.12));
+    box-shadow: 0 0 24px -2px rgba(34, 211, 238, 0.9), inset 0 0 16px -6px rgba(34, 211, 238, 1);
+    border-color: var(--cyan);
+  }
+
+  .btn.primary {
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.9), rgba(14, 165, 196, 0.85));
+    color: #04121a;
+    font-weight: 650;
+    border-color: rgba(160, 246, 255, 0.8);
+  }
+  .btn.primary:hover { box-shadow: 0 0 22px -2px rgba(34, 211, 238, 0.85); }
+  .btn.primary:active, .btn.primary.flash {
+    background: linear-gradient(180deg, rgba(125, 240, 255, 1), rgba(34, 211, 238, 0.95));
+  }
+
+  .btn.ghost { border-color: var(--line); background: rgba(94, 234, 255, 0.05); color: var(--muted); }
+  .btn.ghost:hover { color: var(--text); }
+
+  .btn.danger { border-color: rgba(251, 91, 107, 0.55); color: #ff9aa5; background: rgba(251, 91, 107, 0.09); }
+  .btn.danger .arrow { color: var(--red); }
+
+  .steps {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--muted);
+  }
+  .step-btn {
+    appearance: none;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: transparent;
+    cursor: pointer;
+  }
+  .step-btn[aria-pressed="true"] {
+    color: var(--cyan);
+    border-color: var(--line-strong);
+    background: var(--cyan-soft);
+    box-shadow: 0 0 12px -4px rgba(34, 211, 238, 0.8);
+  }
+
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 7px;
+  }
+  .field input {
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 17px;
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: rgba(6, 12, 24, 0.8);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .field input:focus {
+    border-color: var(--line-strong);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12), 0 0 16px -6px rgba(34, 211, 238, 0.7);
+  }
+  .field input.invalid {
+    border-color: rgba(251, 91, 107, 0.75);
+    box-shadow: 0 0 0 3px rgba(251, 91, 107, 0.15);
+    animation: shake 0.25s;
+  }
+  @keyframes shake {
+    25% { transform: translateX(-4px); } 75% { transform: translateX(4px); }
+  }
+  .field .hint { margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+
+  .actions-row { display: flex; gap: 10px; }
+  .actions-row .btn { flex: 1; padding: 13px 10px; font-size: 14px; }
+
+  .feedback {
+    margin-top: 14px;
+    min-height: 20px;
+    font-size: 13px;
+    font-family: var(--mono);
+    letter-spacing: 0.03em;
+    color: var(--muted);
+  }
+  .feedback.ok    { color: var(--green); }
+  .feedback.error { color: var(--red); }
+  .feedback.info  { color: var(--cyan); }
+
+  /* ---------- Parameters ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table th {
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 0 12px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(94, 234, 255, 0.08);
+  }
+  tr:last-child td { border-bottom: none; }
+  td.mono, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  td.val { color: var(--cyan); font-family: var(--mono); }
+
+  .alarm-row.active td { background: rgba(251, 91, 107, 0.07); }
+  .lvl {
+    font-family: var(--mono); font-size: 11px;
+    padding: 2px 8px; border-radius: 5px;
+    border: 1px solid var(--line);
+  }
+  .lvl.err  { color: var(--red); border-color: rgba(251, 91, 107, 0.5); background: rgba(251, 91, 107, 0.08); }
+  .state-on  { color: var(--red); font-family: var(--mono); font-size: 12px; }
+  .state-off { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .empty-row td { text-align: center; color: var(--muted); padding: 26px 0; font-size: 13px; }
+
+  .card-foot { display: flex; gap: 10px; margin-top: 14px; }
+  .card-foot .btn { padding: 10px 18px; font-size: 13px; }
+
+  footer.bottom {
+    margin-top: 22px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <!-- 内嵌 SVG 占位图：环境内无法取得版权安全的 Akribis 资源，按规格以 CSS/SVG 色块示意 -->
+    <svg class="brand-mark" width="46" height="46" viewBox="0 0 46 46" fill="none" aria-hidden="true">
+      <rect x="1.5" y="1.5" width="43" height="43" rx="10" stroke="rgba(34,211,238,0.55)" stroke-width="1.5"/>
+      <circle cx="23" cy="23" r="11" stroke="#22d3ee" stroke-width="2"/>
+      <path d="M23 8v7M23 31v7M8 23h7M31 23h7" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="23" cy="23" r="3.2" fill="#22d3ee"/>
+    </svg>
+    <div class="brand-text">
+      <h1>运动控制控制台</h1>
+      <div class="sub">Motion Control Console · A-Axis</div>
+    </div>
+    <span id="statusPill" class="pill idle"><span class="dot"></span>就绪 READY</span>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="视图切换">
+    <button class="tab" role="tab" aria-selected="true"  aria-controls="view-overview" data-view="overview"><span class="idx">01</span>轴状态总览</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="view-jog"      data-view="jog"><span class="idx">02</span>单轴点动与定位</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="view-params"   data-view="params"><span class="idx">03</span>参数与报警</button>
+  </nav>
+
+  <div id="alarmBanner" class="banner hidden">
+    <span class="tag">ALARM</span>
+    <span class="msg" id="bannerMsg"></span>
+    <button class="btn danger" id="bannerReset" style="padding:8px 16px; font-size:12.5px;">复位报警</button>
+  </div>
+
+  <main>
+
+    <!-- ===== 视图 1：轴状态总览 ===== -->
+    <section id="view-overview" class="view" role="tabpanel" aria-label="轴状态总览">
+      <div class="card">
+        <h2>轴状态 · Axis Status</h2>
+        <div class="readouts">
+          <div class="readout pos">
+            <div class="k">当前位置 POSITION</div>
+            <div><span class="v" id="posNow">0.00</span><span class="u">mm</span></div>
+          </div>
+          <div class="readout">
+            <div class="k">目标位置 TARGET</div>
+            <div><span class="v" id="targetNow" style="font-size:26px;">0.00</span><span class="u">mm</span></div>
+          </div>
+          <div class="readout">
+            <div class="k">当前速度 VELOCITY</div>
+            <div><span class="v" id="velNow" style="font-size:26px;">0.00</span><span class="u">mm/s</span></div>
+          </div>
+        </div>
+        <div style="margin-top:16px;">
+          <span id="statusBadge" class="badge idle">就绪 READY</span>
+        </div>
+        <div class="rail" id="rail" style="margin-top:20px;">
+          <div class="scale"><span>0 mm</span><span>250</span><span>500</span><span>750</span><span>1000 mm</span></div>
+          <div class="track">
+            <div class="fill" id="barFill"></div>
+            <div class="car" id="barCar"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 视图 2：单轴点动与定位 ===== -->
+    <section id="view-jog" class="view hidden" role="tabpanel" aria-label="单轴点动与定位">
+      <div class="card">
+        <h2>单轴点动与定位 · Jog &amp; Positioning</h2>
+        <div class="jog-layout">
+
+          <div class="jogpad">
+            <div class="jog-here">
+              <div class="v" id="posJog">0.00</div>
+              <div class="u">CURRENT POSITION (mm)</div>
+            </div>
+            <button class="btn" id="btnJogMinus"><span class="arrow">◀</span>负向点动 JOG-</button>
+            <button class="btn" id="btnJogPlus"><span class="arrow">▶</span>正向点动 JOG+</button>
+            <div class="steps">
+              点动步进
+              <button class="step-btn" data-step="1"   aria-pressed="false">1 mm</button>
+              <button class="step-btn" data-step="10"  aria-pressed="true">10 mm</button>
+              <button class="step-btn" data-step="100" aria-pressed="false">100 mm</button>
+            </div>
+          </div>
+
+          <div class="locate">
+            <div class="field">
+              <label for="targetInput">定位目标位置 TARGET POSITION (mm)</label>
+              <input type="number" id="targetInput" min="0" max="1000" step="0.01" placeholder="0 – 1000" value="250">
+              <div class="hint">有效行程（软限位）：0 – 1000 mm</div>
+            </div>
+            <div class="field">
+              <label for="speedInput">运行速度 MOVE SPEED (mm/s)</label>
+              <input type="number" id="speedInput" min="0.01" max="500" step="1" value="250">
+              <div class="hint">最大速度上限 500 mm/s</div>
+            </div>
+            <div class="actions-row">
+              <button class="btn primary" id="btnExecute">定位执行 GO</button>
+              <button class="btn ghost" id="btnHome">回零 HOME</button>
+              <button class="btn danger" id="btnStop">停止 STOP</button>
+            </div>
+            <div class="feedback" id="feedback">A 轴就绪，等待指令。</div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 视图 3：参数与报警 ===== -->
+    <section id="view-params" class="view hidden" role="tabpanel" aria-label="参数与报警">
+      <div class="card">
+        <h2>运动参数 · Parameters</h2>
+        <table>
+          <thead>
+            <tr><th style="width:42%;">参数 PARAMETER</th><th>数值 VALUE</th><th>单位 UNIT</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>最大速度 Max Speed</td><td class="val">500</td><td class="mono">mm/s</td></tr>
+            <tr><td>加速度 Acceleration</td><td class="val">1200</td><td class="mono">mm/s²</td></tr>
+            <tr><td>减速度 Deceleration</td><td class="val">1500</td><td class="mono">mm/s²</td></tr>
+            <tr><td>点动速度 Jog Speed</td><td class="val">250</td><td class="mono">mm/s</td></tr>
+            <tr><td>回零速度 Homing Speed</td><td class="val">20</td><td class="mono">mm/s</td></tr>
+            <tr><td>软限位正方向 Positive Limit</td><td class="val">1000</td><td class="mono">mm</td></tr>
+            <tr><td>软限位负方向 Negative Limit</td><td class="val">0</td><td class="mono">mm</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>报警列表 · Alarms</h2>
+        <table>
+          <thead>
+            <tr><th>时间</th><th>代码</th><th>等级</th><th>描述</th><th>状态</th></tr>
+          </thead>
+          <tbody id="alarmBody">
+            <tr class="empty-row"><td colspan="5">暂无报警记录</td></tr>
+          </tbody>
+        </table>
+        <div class="card-foot">
+          <button class="btn" id="btnResetAlarms">复位报警 RESET</button>
+          <button class="btn ghost" id="btnClearAlarms">清除已复位记录</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="bottom">PURE FRONT-END STATIC PROTOTYPE · 纯前端静态原型 · 无后端连接 · 数据为本地模拟</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var LIMIT_MIN = 0;
+  var LIMIT_MAX = 1000;
+  var MAX_SPEED = 500;
+
+  var state = {
+    position: 0,
+    target: 0,
+    velocity: 0,
+    moveSpeed: 250,
+    jogStep: 10,
+    running: false,
+    alarm: false,
+    seq: 1,
+    alarms: []
+  };
+
+  function $(id) { return document.getElementById(id); }
+
+  var els = {
+    posNow: $("posNow"),
+    posJog: $("posJog"),
+    targetNow: $("targetNow"),
+    velNow: $("velNow"),
+    statusPill: $("statusPill"),
+    statusBadge: $("statusBadge"),
+    rail: $("rail"),
+    barFill: $("barFill"),
+    barCar: $("barCar"),
+    banner: $("alarmBanner"),
+    bannerMsg: $("bannerMsg"),
+    feedback: $("feedback"),
+    targetInput: $("targetInput"),
+    speedInput: $("speedInput"),
+    alarmBody: $("alarmBody")
+  };
+
+  function fmt(v) { return Number(v).toFixed(2); }
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+  function timeText() { return new Date().toLocaleTimeString("zh-CN", { hour12: false }); }
+
+  function setFeedback(msg, kind) {
+    els.feedback.textContent = msg;
+    els.feedback.className = "feedback" + (kind ? " " + kind : "");
+  }
+
+  function flash(btn) {
+    btn.classList.add("flash");
+    setTimeout(function () { btn.classList.remove("flash"); }, 230);
+  }
+
+  /* ---------- Motion simulation ---------- */
+  function stopMotion() {
+    state.running = false;
+    state.target = state.position;
+    state.velocity = 0;
+  }
+
+  function goTo(target) {
+    if (state.alarm) {
+      setFeedback("存在未复位报警，请先在「参数与报警」视图复位。", "error");
+      return;
+    }
+    if (!isFinite(target) || target < LIMIT_MIN || target > LIMIT_MAX) {
+      raiseAlarm("E0411", "目标位置 " + fmt(target) + " mm 超出软限位 [" + LIMIT_MIN + ", " + LIMIT_MAX + "]");
+      return;
+    }
+    readMoveSpeed();
+    if (target === state.position) {
+      state.target = target;
+      stopMotion();
+      setFeedback("已在目标位置 " + fmt(target) + " mm。", "ok");
+      paint();
+      return;
+    }
+    state.target = target;
+    state.running = true;
+    setFeedback((target > state.position ? "正向定位中 → " : "负向定位中 → ") + fmt(target) + " mm …", "info");
+    paint();
+  }
+
+  function jog(direction, btn) {
+    flash(btn);
+    if (state.alarm) {
+      setFeedback("存在未复位报警，请先复位。", "error");
+      return;
+    }
+    readMoveSpeed();
+    var next = clamp(state.position + direction * state.jogStep, LIMIT_MIN, LIMIT_MAX);
+    if (next === state.position) {
+      raiseAlarm("E0401", direction > 0 ? "正方向已触及硬限位，点动中止" : "负方向已触及硬限位，点动中止");
+      return;
+    }
+    state.target = next;
+    state.running = true;
+    setFeedback((direction > 0 ? "正向点动 +" : "负向点动 −") + state.jogStep + " mm …", "info");
+    paint();
+  }
+
+  function readMoveSpeed() {
+    var v = parseFloat(els.speedInput.value);
+    if (isFinite(v) && v > 0) {
+      state.moveSpeed = Math.min(v, MAX_SPEED);
+    } else {
+      setFeedback("速度参数无效，沿用 " + state.moveSpeed + " mm/s。", "error");
+    }
+  }
+
+  function raiseAlarm(code, msg) {
+    state.alarm = true;
+    stopMotion();
+    state.alarms.unshift({
+      id: state.seq++,
+      time: timeText(),
+      code: code,
+      msg: msg,
+      active: true
+    });
+    setFeedback("报警 " + code + "：" + msg, "error");
+    paint();
+  }
+
+  /* ---------- Rendering ---------- */
+  function statusName() {
+    if (state.alarm) return { cls: "alarm", text: "报警 ALARM" };
+    if (state.running) return { cls: "running", text: "运行 RUNNING" };
+    return { cls: "idle", text: "就绪 READY" };
+  }
+
+  function paint() {
+    els.posNow.textContent = fmt(state.position);
+    els.posJog.textContent = fmt(state.position);
+    els.targetNow.textContent = fmt(state.target);
+    els.velNow.textContent = fmt(Math.abs(state.velocity));
+
+    var st = statusName();
+    els.statusPill.className = "pill " + st.cls;
+    els.statusPill.lastChild.textContent = st.text;
+    els.statusBadge.className = "badge " + st.cls;
+    els.statusBadge.textContent = st.text;
+
+    var pct = clamp((state.position - LIMIT_MIN) / (LIMIT_MAX - LIMIT_MIN) * 100, 0, 100);
+    els.barFill.style.width = pct + "%";
+    els.barCar.style.left = pct + "%";
+    els.rail.classList.toggle("alarm", state.alarm);
+
+    var active = state.alarms.filter(function (a) { return a.active; })[0];
+    els.banner.classList.toggle("hidden", !active);
+    if (active) { els.bannerMsg.textContent = active.code + " · " + active.msg; }
+
+    renderAlarms();
+  }
+
+  function renderAlarms() {
+    if (state.alarms.length === 0) {
+      els.alarmBody.innerHTML = '<tr class="empty-row"><td colspan="5">暂无报警记录</td></tr>';
+      return;
+    }
+    var html = state.alarms.map(function (a) {
+      return '<tr class="' + (a.active ? "alarm-row active" : "alarm-row") + '">' +
+        '<td class="mono">' + a.time + '</td>' +
+        '<td class="mono">' + a.code + '</td>' +
+        '<td><span class="lvl err">ERR</span></td>' +
+        '<td>' + a.msg + '</td>' +
+        '<td>' + (a.active ? '<span class="state-on">● 活动</span>' : '<span class="state-off">○ 已复位</span>') + '</td>' +
+      '</tr>';
+    }).join("");
+    els.alarmBody.innerHTML = html;
+  }
+
+  /* ---------- View switching ---------- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".view"));
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      var name = tab.getAttribute("data-view");
+      tabs.forEach(function (t) { t.setAttribute("aria-selected", t === tab ? "true" : "false"); });
+      panels.forEach(function (p) { p.classList.toggle("hidden", p.id !== "view-" + name); });
+    });
+  });
+
+  /* ---------- Controls wiring ---------- */
+  $("btnJogMinus").addEventListener("click", function (e) { jog(-1, e.currentTarget); });
+  $("btnJogPlus").addEventListener("click", function (e) { jog(1, e.currentTarget); });
+
+  Array.prototype.slice.call(document.querySelectorAll(".step-btn")).forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.jogStep = parseInt(b.getAttribute("data-step"), 10);
+      Array.prototype.slice.call(document.querySelectorAll(".step-btn")).forEach(function (x) {
+        x.setAttribute("aria-pressed", x === b ? "true" : "false");
+      });
+      setFeedback("点动步进已设为 " + state.jogStep + " mm。", "info");
+    });
+  });
+
+  function onExecute() {
+    var raw = els.targetInput.value;
+    var v = parseFloat(raw);
+    if (raw.trim() === "" || isNaN(v)) {
+      els.targetInput.classList.add("invalid");
+      setFeedback("请输入有效的目标位置数值。", "error");
+      return;
+    }
+    els.targetInput.classList.remove("invalid");
+    goTo(v);
+  }
+
+  els.targetInput.addEventListener("input", function () { els.targetInput.classList.remove("invalid"); });
+  els.targetInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { onExecute(); } });
+  $("btnExecute").addEventListener("click", function (e) { flash(e.currentTarget); onExecute(); });
+
+  $("btnHome").addEventListener("click", function (e) { flash(e.currentTarget); goTo(0); });
+
+  $("btnStop").addEventListener("click", function (e) {
+    flash(e.currentTarget);
+    if (state.alarm) { setFeedback("停止指令无效：请先复位报警。", "error"); return; }
+    if (state.running) {
+      stopMotion();
+      setFeedback("已停止，当前位置 " + fmt(state.position) + " mm。", "error");
+      paint();
+    } else {
+      setFeedback("A 轴当前未在运动。", "");
+    }
+  });
+
+  function resetAlarms() {
+    if (!state.alarm) { setFeedback("当前没有活动报警。", ""); return; }
+    state.alarm = false;
+    state.alarms.forEach(function (a) { a.active = false; });
+    setFeedback("报警已全部复位，A 轴恢复就绪。", "ok");
+    paint();
+  }
+
+  $("btnResetAlarms").addEventListener("click", function (e) { flash(e.currentTarget); resetAlarms(); });
+  $("bannerReset").addEventListener("click", function (e) { flash(e.currentTarget); resetAlarms(); });
+
+  $("btnClearAlarms").addEventListener("click", function (e) {
+    flash(e.currentTarget);
+    state.alarms = state.alarms.filter(function (a) { return a.active; });
+    setFeedback("已清除已复位的报警记录。", "ok");
+    paint();
+  });
+
+  /* ---------- Animation loop ---------- */
+  var lastTs = null;
+  function frame(ts) {
+    if (lastTs === null) { lastTs = ts; }
+    var dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
+
+    if (state.running) {
+      var diff = state.target - state.position;
+      var step = state.moveSpeed * dt;
+      if (Math.abs(diff) <= step) {
+        state.position = state.target;
+        state.running = false;
+        state.velocity = 0;
+        setFeedback("定位完成：已到达 " + fmt(state.position) + " mm。", "ok");
+      } else {
+        state.position += Math.sign(diff) * step;
+        state.velocity = Math.sign(diff) * state.moveSpeed;
+      }
+      paint();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  paint();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
