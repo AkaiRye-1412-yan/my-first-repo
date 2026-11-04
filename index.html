@@ -1227,7 +1227,7 @@
     readMoveSpeed();
     var next = clamp(state.position + direction * state.jogStep, LIMIT_MIN, LIMIT_MAX);
     if (next === state.position) {
-      raiseAlarm("E0401", direction > 0 ? "正方向已触及硬限位，点动中止" : "负方向已触及硬限位，点动中止");
+      raiseAlarm("E0401", direction > 0 ? "正方向已到达软限位端点（1000 mm），点动中止" : "负方向已到达软限位端点（0 mm），点动中止");
       return;
     }
     state.target = next;
